@@ -1,22 +1,29 @@
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
+const articlesRoutes = require('./routes/articles');
 
 const app = express();
 const PORT = 3001;
 
-const articlesRoutes = require('./routes/articles');
-
+// Configuraciones de middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-app.use('/api/articles', articlesRoutes);  
+// Servir la carpeta de archivos PDF
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html')); 
+// Usar el router para los artículos
+app.use('/api/articles', articlesRoutes);
+
+// Middleware para manejar errores
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Algo salió mal!');
 });
 
+// Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
