@@ -1,29 +1,37 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const path = require('path');
 const articlesRoutes = require('./routes/articles');
+const dotenv = require('dotenv');
+
+dotenv.config(); // Carga las variables de entorno
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
+const MONGO_URI = process.env.MONGO_URI; // Carga la URI desde el archivo .env
 
-// Configuraciones de middleware
+// Middleware para habilitar CORS
 app.use(cors());
-app.use(bodyParser.json());
 
-// Servir la carpeta de archivos PDF
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Middleware para parsear el cuerpo de las solicitudes
+app.use(express.json());
 
-// Usar el router para los artículos
+// Usar las rutas de artículos
 app.use('/api/articles', articlesRoutes);
 
-// Middleware para manejar errores
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Algo salió mal!');
+// Conectar a MongoDB
+mongoose.connect(MONGO_URI, { 
+    useNewUrlParser: true, 
+    useUnifiedTopology: true 
+})
+.then(() => {
+    console.log('Conexión a MongoDB exitosa');
+})
+.catch(err => {
+    console.error('Error al conectar a MongoDB:', err.message);
 });
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
