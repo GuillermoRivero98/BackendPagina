@@ -1,37 +1,51 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
-const articlesRoutes = require('./routes/articles');
-const dotenv = require('dotenv');
-
-dotenv.config(); // Carga las variables de entorno
+const path = require('path');
+const cors = require('cors'); // Importar el middleware CORS
+const articlesRoutes = require('./routes/articles'); // Asegúrate de que esta ruta sea correcta
+require('dotenv').config(); // Cargar variables de entorno
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MONGO_URI = process.env.MONGO_URI; // Carga la URI desde el archivo .env
 
-// Middleware para habilitar CORS
-app.use(cors());
+// Middleware para permitir CORS
+app.use(cors()); // Esto permitirá todas las solicitudes de orígenes cruzados
+// Nota: Considera restringir el origen para producción
+// app.use(cors({ origin: 'http://tu-dominio.com' }));
 
-// Middleware para parsear el cuerpo de las solicitudes
+// Middleware para analizar JSON
 app.use(express.json());
 
-// Usar las rutas de artículos
-app.use('/api/articles', articlesRoutes);
+// Middleware para servir archivos estáticos desde la carpeta 'uploads'
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Conectar a MongoDB
-mongoose.connect(MONGO_URI, { 
-    useNewUrlParser: true, 
-    useUnifiedTopology: true 
+// Conexión a MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
 })
 .then(() => {
-    console.log('Conexión a MongoDB exitosa');
+  console.log('Conectado a MongoDB');
 })
 .catch(err => {
-    console.error('Error al conectar a MongoDB:', err.message);
+  console.error('Error de conexión a MongoDB:', err);
+});
+
+// Rutas para artículos
+app.use('/api/articles', articlesRoutes);
+
+// Ruta para la página principal (opcional)
+app.get('/', (req, res) => {
+  res.send('Bienvenido a la API de Artículos');
+});
+
+// Manejo de errores
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Algo salió mal!');
 });
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });

@@ -19,7 +19,7 @@ const articleSchema = new mongoose.Schema({
     },
     filePath: {
         type: String,
-        required: true,
+        required: true,  // Asegúrate de que siempre tienes un valor para filePath
     },
 });
 
