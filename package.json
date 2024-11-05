@@ -1,21 +1,19 @@
 {
+  "name": "backendpagina",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
   "dependencies": {
-    "backendpagina": "file:",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
-    "mongoose": "^8.7.2",
     "multer": "^1.4.5-lts.1",
     "pdf-parse": "^1.1.1",
+    "pg": "^8.13.1",
     "uuid": "^10.0.0"
-  },
-  "name": "backendpagina",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
   },
   "keywords": [],
   "author": "",

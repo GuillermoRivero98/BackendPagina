@@ -1,51 +1,43 @@
+// src/app.js
 const express = require('express');
-const mongoose = require('mongoose');
+const cors = require('cors');
 const path = require('path');
-const cors = require('cors'); // Importar el middleware CORS
-const articlesRoutes = require('./routes/articles'); // Asegúrate de que esta ruta sea correcta
-require('dotenv').config(); // Cargar variables de entorno
+const pool = require('./db');  // Importar la conexión a PostgreSQL
+require('dotenv').config();
 
-const app = express();
+const app = express();  // Inicializar `app` antes de usarlo
 const PORT = process.env.PORT || 3001;
+const articlesRoutes = require('./routes/articles');
 
-// Middleware para permitir CORS
-app.use(cors()); // Esto permitirá todas las solicitudes de orígenes cruzados
-// Nota: Considera restringir el origen para producción
-// app.use(cors({ origin: 'http://tu-dominio.com' }));
-
-// Middleware para analizar JSON
-app.use(express.json());
-
-// Middleware para servir archivos estáticos desde la carpeta 'uploads'
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Conexión a MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('Conectado a MongoDB');
-})
-.catch(err => {
-  console.error('Error de conexión a MongoDB:', err);
+// Prueba de conexión a PostgreSQL
+pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+        console.error('Error al conectar a PostgreSQL:', err);
+    } else {
+        console.log('Conexión a PostgreSQL exitosa:', res.rows[0]);
+    }
 });
 
-// Rutas para artículos
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir archivos estáticos
+
+// Usar la ruta de artículos
 app.use('/api/articles', articlesRoutes);
 
-// Ruta para la página principal (opcional)
-app.get('/', (req, res) => {
-  res.send('Bienvenido a la API de Artículos');
-});
-
-// Manejo de errores
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Algo salió mal!');
+// Ruta de prueba para obtener todos los artículos desde PostgreSQL
+app.get('/api/articles', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM articulos'); // Asegúrate de que la tabla se llama "articulos"
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error al obtener artículos:', err);
+        res.status(500).json({ error: 'Error al obtener artículos' });
+    }
 });
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
