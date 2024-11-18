@@ -1,80 +1,115 @@
 const express = require('express');
-const multer = require('multer'); // Para subir archivos
-const pool = require('../db'); // Importa la conexión a PostgreSQL
+const pool = require('../db'); // Conexión a PostgreSQL
 const router = express.Router();
+const multer = require('multer');
+const jwt = require('jsonwebtoken');
 
-// Configuración de multer para almacenar los archivos en la memoria
-const storage = multer.memoryStorage(); // Cambiado a memoryStorage
+// Configura almacenamiento en memoria
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Ruta para obtener todos los artículos
-router.get('/', async (req, res) => {
+// Middleware para proteger rutas
+const authenticateToken = (req, res, next) => {
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Acceso denegado' });
+
     try {
-        const result = await pool.query('SELECT * FROM articulos');
-        res.json(result.rows);
+        const verified = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = verified;
+        next();
     } catch (error) {
-        console.error('Error al obtener los artículos:', error);
-        res.status(500).json({ message: 'Error al obtener los artículos' });
+        res.status(401).json({ message: 'Token inválido' });
     }
-});
+};
 
-// Ruta para crear un nuevo artículo con PDF y foto
-router.post('/', upload.fields([{ name: 'pdf' }, { name: 'foto' }]), async (req, res) => {
-    const { titulo, contenido, autor } = req.body;
-    const pdf = req.files['pdf'] ? req.files['pdf'][0].buffer : null;  // Obtiene el archivo PDF como un buffer
-    const foto = req.files['foto'] ? req.files['foto'][0].buffer : null; // Obtiene la imagen como un buffer
+// Ruta protegida para subir artículos
+router.post('/', authenticateToken, upload.fields([{ name: 'pdf' }, { name: 'foto' }]), async (req, res) => {
+    const { titulo, contenido, autor, clase_id } = req.body;
 
-    console.log('Datos recibidos:', { titulo, contenido, autor });
-    console.log('Tamaño del PDF:', pdf ? pdf.length : 'No hay PDF');
-    console.log('Tamaño de la foto:', foto ? foto.length : 'No hay foto');
+    if (req.user.clase_id !== parseInt(clase_id) && req.user.rol !== 'administrador') {
+        return res.status(403).json({ message: 'No tienes permiso para subir artículos a esta clase' });
+    }
 
-    if (!titulo || !contenido || !autor) {
+    const pdf = req.files['pdf'] ? req.files['pdf'][0].buffer : null;
+    const foto = req.files['foto'] ? req.files['foto'][0].buffer : null;
+
+    if (!titulo || !contenido || !autor || !clase_id) {
         return res.status(400).json({ message: 'Faltan campos obligatorios' });
     }
 
     try {
         const result = await pool.query(
-            'INSERT INTO articulos (titulo, contenido, autor, pdf, foto) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [titulo, contenido, autor, pdf, foto]
+            'INSERT INTO articulos (titulo, contenido, autor, clase, pdf, foto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [titulo, contenido, autor, clase_id, pdf, foto]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error('Error al crear el artículo:', error);  // Esto mostrará el error completo
-        res.status(500).json({ message: 'Error al crear el artículo' });
+        console.error('Error al crear el artículo en la base de datos:', error);
+        res.status(500).json({ message: 'Error al crear el artículo en la base de datos' });
     }
 });
 
-// Ruta para obtener el PDF de un artículo por su ID
-router.get('/:id/pdf', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT pdf FROM articulos WHERE id = $1', [req.params.id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'PDF no encontrado' });
-        }
+// Ruta para obtener artículos por clase
+router.get('/class/:className', async (req, res) => {
+    const { className } = req.params; // Obtiene la clase de la solicitud
+    console.log(`Clase solicitada: ${className}`); // Para depuración
 
-        const pdf = result.rows[0].pdf;
-        res.setHeader('Content-Type', 'application/pdf'); // Establece el tipo de contenido para PDF
-        res.send(pdf);
+    try {
+        const result = await pool.query(
+            'SELECT * FROM articulos WHERE clase = $1',
+            [className]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: `No se encontraron artículos para la clase ${className}` });
+        }
+        res.json(result.rows);
     } catch (error) {
-        console.error('Error al obtener el PDF:', error);
-        res.status(500).json({ message: 'Error al obtener el PDF' });
+        console.error(`Error al obtener artículos de la clase ${className}:`, error);
+        res.status(500).json({ message: `Error al obtener artículos de la clase ${className}` });
     }
 });
 
 // Ruta para obtener la foto de un artículo por su ID
 router.get('/:id/foto', async (req, res) => {
+    const { id } = req.params;
     try {
-        const result = await pool.query('SELECT foto FROM articulos WHERE id = $1', [req.params.id]);
+        const result = await pool.query('SELECT foto FROM articulos WHERE id = $1', [id]);
         if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Foto no encontrada' });
+            return res.status(404).json({ message: 'Artículo no encontrado' });
         }
 
         const foto = result.rows[0].foto;
-        res.setHeader('Content-Type', 'image/jpeg'); // Cambia esto según el formato de la imagen (jpeg, png, etc.)
+        if (!foto) {
+            return res.status(404).json({ message: 'Foto no disponible' });
+        }
+
+        res.set('Content-Type', 'image/jpeg'); // Asegúrate de que el tipo MIME sea correcto
         res.send(foto);
     } catch (error) {
-        console.error('Error al obtener la foto:', error);
-        res.status(500).json({ message: 'Error al obtener la foto' });
+        console.error('Error al obtener la foto del artículo:', error);
+        res.status(500).json({ message: 'Error al obtener la foto del artículo' });
+    }
+});
+
+// Ruta para obtener el PDF de un artículo por su ID
+router.get('/:id/pdf', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('SELECT pdf FROM articulos WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Artículo no encontrado' });
+        }
+
+        const pdf = result.rows[0].pdf;
+        if (!pdf) {
+            return res.status(404).json({ message: 'PDF no disponible' });
+        }
+
+        res.set('Content-Type', 'application/pdf');
+        res.send(pdf);
+    } catch (error) {
+        console.error('Error al obtener el PDF del artículo:', error);
+        res.status(500).json({ message: 'Error al obtener el PDF del artículo' });
     }
 });
 

@@ -1,0 +1,96 @@
+# Backend - Revista
+
+## Descripción
+Este proyecto contiene el backend para la revista. Está desarrollado utilizando Node.js con Express.
+
+## Dependencias
+Las principales dependencias del proyecto son:
+- Express
+- CORS
+- dotenv
+- PostgreSQL
+- multer
+
+## Configuración
+1. Clona el repositorio.
+2. Instala las dependencias:
+   ```bash
+   npm install
+# Proyecto de Revista - Backend y Frontend
+
+## Descripción General
+Este proyecto gestiona la visualización y creación de artículos para una revista digital. Incluye funcionalidad para almacenar y servir imágenes y PDFs directamente desde PostgreSQL, eliminando la dependencia del almacenamiento local.
+
+---
+
+## Cambios Recientes
+
+### 1. Migración de Archivos a PostgreSQL
+- **Descripción:** Los archivos (PDFs e imágenes) que antes se almacenaban localmente en la carpeta `uploads` ahora se almacenan en PostgreSQL en columnas de tipo `BYTEA`.
+- **Cambios realizados:**
+  - Eliminada la carpeta `uploads` y su referencia en el archivo `app.js`.
+  - Modificada la tabla `articulos` para incluir columnas `pdf` y `foto` de tipo `BYTEA`.
+  - Actualizadas las rutas del backend para manejar archivos en memoria con `multer` y almacenarlos en PostgreSQL.
+- **Código relevante:** Archivo `articles.js`.
+
+### 2. Rutas para Subir y Recuperar Archivos
+- **Endpoint para subir artículos:**
+  - **Ruta:** `POST /api/articles`
+  - **Funcionalidad:** Sube un artículo con los campos de texto (título, contenido, autor) y archivos (PDF e imagen), y los almacena en PostgreSQL.
+- **Endpoints para recuperar archivos:**
+  - **Ruta:** `GET /api/articles/:id/foto`
+    - **Funcionalidad:** Recupera la foto del artículo como un archivo binario.
+    - **Tipo MIME:** `image/jpeg`.
+  - **Ruta:** `GET /api/articles/:id/pdf`
+    - **Funcionalidad:** Recupera el PDF del artículo como un archivo binario.
+    - **Tipo MIME:** `application/pdf`.
+
+### 3. Ajustes en el Frontend
+- **Actualización de URLs:** Los archivos ahora se obtienen directamente desde las rutas del backend:
+  ```javascript
+  <img src={`http://localhost:3001/api/articles/${article.id}/foto`} alt="Foto del artículo" />
+  <iframe src={`http://localhost:3001/api/articles/${article.id}/pdf`} title={article.titulo}></iframe>
+
+  # README - Proyecto de Gestión de Artículos con Clases y Autenticación
+
+## **Descripción General**
+
+Este proyecto permite gestionar artículos organizados por clases (como "Camino a Pasitos" y "La Quermesina"). Los usuarios pueden iniciar sesión, subir artículos a sus clases específicas y visualizar los artículos disponibles. Incluye autenticación con `JWT` para proteger las rutas del backend y asegurar que solo usuarios autorizados puedan gestionar artículos.
+
+---
+
+## **Cambios Implementados**
+
+### **Backend**
+
+#### **1. Usuarios y Roles**
+- **Archivo `users.js`:**
+  - Rutas añadidas:
+    - `POST /api/users/register`: Registro de usuarios.
+    - `POST /api/users/login`: Inicio de sesión de usuarios.
+  - Se implementó la autenticación de usuarios con `bcrypt` para proteger contraseñas y `JWT` para gestionar sesiones.
+
+  **Código destacado:**
+  ```javascript
+  router.post('/register', async (req, res) => {
+      const { nombre, email, password, clase_id } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const result = await pool.query(
+          'INSERT INTO usuarios (nombre, email, password, clase_id) VALUES ($1, $2, $3, $4) RETURNING *',
+          [nombre, email, hashedPassword, clase_id]
+      );
+      res.status(201).json(result.rows[0]);
+  });
+
+  router.post('/login', async (req, res) => {
+      const { email, password } = req.body;
+      const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+      const validPassword = await bcrypt.compare(password, result.rows[0].password);
+      const token = jwt.sign({ id: result.rows[0].id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      res.json({ token });
+  });
+
+  Nombre	Email	Contraseña	Clase Asociada	Rol
+  Usuario A	usuarioa@example.com	Pass1234	Camino a Pasitos	usuario
+  Usuario B	usuariob@example.com	Password5678	La Quermesina	usuario
+  Administrador	admin@example.com	Admin2024	- (Acceso global)	administrador

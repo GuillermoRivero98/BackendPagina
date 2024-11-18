@@ -1,43 +1,41 @@
-// src/app.js
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const pool = require('./db');  // Importar la conexión a PostgreSQL
-require('dotenv').config();
+const bodyParser = require('body-parser');
+const dotenv = require('dotenv');
+const pool = require('./db'); // Conexión a PostgreSQL
 
-const app = express();  // Inicializar `app` antes de usarlo
-const PORT = process.env.PORT || 3001;
+dotenv.config();
+
+const app = express();
+
+// Middlewares
+app.use(cors());
+app.use(bodyParser.json());
+
+// Importar rutas
+const authRoutes = require('./routes/auth');
 const articlesRoutes = require('./routes/articles');
+const usersRoutes = require('./routes/users');
 
-// Prueba de conexión a PostgreSQL
+// Rutas
+app.use('/api/auth', authRoutes); // Rutas de autenticación
+app.use('/api/articles', articlesRoutes); // Rutas de artículos
+app.use('/api/users', usersRoutes); // Rutas de usuarios
+
+// Puerto
+const PORT = process.env.PORT || 3001;
+
+// Conexión a la base de datos
 pool.query('SELECT NOW()', (err, res) => {
     if (err) {
         console.error('Error al conectar a PostgreSQL:', err);
+        process.exit(1);
     } else {
         console.log('Conexión a PostgreSQL exitosa:', res.rows[0]);
     }
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Servir archivos estáticos
-
-// Usar la ruta de artículos
-app.use('/api/articles', articlesRoutes);
-
-// Ruta de prueba para obtener todos los artículos desde PostgreSQL
-app.get('/api/articles', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM articulos'); // Asegúrate de que la tabla se llama "articulos"
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Error al obtener artículos:', err);
-        res.status(500).json({ error: 'Error al obtener artículos' });
-    }
-});
-
-// Iniciar el servidor
+// Iniciar servidor
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
